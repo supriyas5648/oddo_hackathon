@@ -40,7 +40,7 @@ const createAsset = {
     isBookable: Joi.boolean(),
     image: Joi.string().trim().uri({ allowRelative: true }).allow(''),
     documents: Joi.array().items(documentItem),
-    createdBy: objectId.allow(null).label('createdBy'),
+    // createdBy is NOT accepted from the client — it's the logged-in manager.
   }),
 };
 

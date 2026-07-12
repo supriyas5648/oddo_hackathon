@@ -2,7 +2,7 @@ const Asset = require('../models/asset.model');
 const Counter = require('../models/counter.model');
 const Category = require('../models/category.model');
 const Department = require('../models/department.model');
-const User = require('../models/user.model');
+const Manager = require('../models/manager.model');
 const Allocation = require('../models/allocation.model');
 const ApiError = require('../utils/ApiError');
 const { paginate } = require('../utils/queryFeatures');
@@ -10,7 +10,7 @@ const { paginate } = require('../utils/queryFeatures');
 const POPULATE = [
   { path: 'category', select: 'name icon' },
   { path: 'department', select: 'name code' },
-  { path: 'createdBy', select: 'name email' },
+  { path: 'createdBy', select: 'fullName email' },
 ];
 
 const TAG_PREFIX = 'AF';
@@ -25,7 +25,7 @@ async function generateAssetTag() {
   return `${TAG_PREFIX}-${String(seq).padStart(4, '0')}`;
 }
 
-/** Validate that referenced category/department/user actually exist. */
+/** Validate that referenced category/department/manager actually exist. */
 async function assertReferencesExist({ category, department, createdBy }) {
   const checks = [];
   if (category) {
@@ -44,16 +44,17 @@ async function assertReferencesExist({ category, department, createdBy }) {
   }
   if (createdBy) {
     checks.push(
-      User.exists({ _id: createdBy }).then((ok) => {
-        if (!ok) throw ApiError.badRequest('createdBy does not reference an existing user');
+      Manager.exists({ _id: createdBy }).then((ok) => {
+        if (!ok) throw ApiError.badRequest('createdBy does not reference an existing manager');
       })
     );
   }
   await Promise.all(checks);
 }
 
-async function create(payload) {
-  await assertReferencesExist(payload);
+/** `managerId` (the logged-in manager) is recorded as the asset's creator. */
+async function create(payload, managerId) {
+  await assertReferencesExist({ ...payload, createdBy: managerId });
 
   // Guard duplicate serials with a friendly error before hitting the index.
   const existing = await Asset.exists({ serialNumber: payload.serialNumber });
@@ -64,7 +65,7 @@ async function create(payload) {
   }
 
   const assetTag = await generateAssetTag();
-  const asset = await Asset.create({ ...payload, assetTag });
+  const asset = await Asset.create({ ...payload, assetTag, createdBy: managerId || null });
   return asset.populate(POPULATE);
 }
 

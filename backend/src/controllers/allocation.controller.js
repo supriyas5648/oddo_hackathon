@@ -3,12 +3,14 @@ const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/apiResponse');
 
 const create = catchAsync(async (req, res) => {
-  const data = await allocationService.create(req.body);
+  // allocatedBy is always the logged-in manager — never taken from the client.
+  const data = await allocationService.create(req.body, req.manager._id);
   sendSuccess(res, { statusCode: 201, message: 'Asset allocated', data });
 });
 
 const returnAsset = catchAsync(async (req, res) => {
-  const data = await allocationService.returnAsset(req.params.id, req.body);
+  // returnedBy is always the logged-in manager.
+  const data = await allocationService.returnAsset(req.params.id, req.body, req.manager._id);
   sendSuccess(res, { message: 'Asset returned', data });
 });
 

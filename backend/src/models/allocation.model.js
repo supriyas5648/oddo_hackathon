@@ -17,16 +17,15 @@ const allocationSchema = new Schema(
     },
     employee: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Employee',
       required: [true, 'Employee is required'],
       index: true,
     },
-    // Who performed the allocation (an Admin/Asset Manager). Optional until
-    // authentication is added, at which point it comes from the session user.
+    // The logged-in manager who performed the allocation (set server-side).
     allocatedBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
+      ref: 'Manager',
+      required: [true, 'allocatedBy (manager) is required'],
     },
     allocationDate: {
       type: Date,
@@ -68,6 +67,24 @@ const allocationSchema = new Schema(
       trim: true,
       maxlength: [500, 'Return remarks cannot exceed 500 characters'],
       default: '',
+    },
+    // The manager who processed the return (set server-side from the session).
+    returnedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Manager',
+      default: null,
+    },
+    // --- Maintenance actors (future-ready; populated by a maintenance module).
+    // Recorded here so history/timeline can attribute maintenance to a manager.
+    maintenanceStartedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Manager',
+      default: null,
+    },
+    maintenanceCompletedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Manager',
+      default: null,
     },
   },
   {

@@ -1,42 +1,38 @@
 const Joi = require('joi');
 const { objectId, idParam, paginationQuery } = require('./common.validation');
 
-const ROLES = ['Admin', 'Asset Manager', 'Department Head', 'Employee'];
 const STATUS = ['Active', 'Inactive'];
 
-const createUser = {
+const createEmployee = {
   body: Joi.object({
     name: Joi.string().trim().min(2).max(120).required(),
     email: Joi.string().trim().lowercase().email().required(),
-    password: Joi.string().min(6).max(128).required(),
+    designation: Joi.string().trim().allow('').max(120),
     department: objectId.allow(null).label('department'),
-    role: Joi.string().valid(...ROLES),
     status: Joi.string().valid(...STATUS),
   }),
 };
 
-const updateUser = {
+const updateEmployee = {
   params: idParam,
   body: Joi.object({
     name: Joi.string().trim().min(2).max(120),
     email: Joi.string().trim().lowercase().email(),
-    password: Joi.string().min(6).max(128),
+    designation: Joi.string().trim().allow('').max(120),
     department: objectId.allow(null).label('department'),
-    role: Joi.string().valid(...ROLES),
     status: Joi.string().valid(...STATUS),
   })
     .min(1)
     .message('At least one field must be provided to update'),
 };
 
-const listUsers = {
+const listEmployees = {
   query: paginationQuery.keys({
-    role: Joi.string().valid(...ROLES),
     status: Joi.string().valid(...STATUS),
     department: objectId.label('department'),
   }),
 };
 
-const userId = { params: idParam };
+const employeeId = { params: idParam };
 
-module.exports = { createUser, updateUser, listUsers, userId };
+module.exports = { createEmployee, updateEmployee, listEmployees, employeeId };

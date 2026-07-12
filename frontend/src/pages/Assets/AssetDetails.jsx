@@ -84,7 +84,7 @@ export default function AssetDetails({ assetId, onEdit }) {
           <span className={CONDITION_STYLES[asset.condition] || ''}>{asset.condition}</span>
         </Field>
         <Field label="Bookable">{asset.isBookable ? 'Yes' : 'No'}</Field>
-        <Field label="Created By">{asset.createdBy?.name || '—'}</Field>
+        <Field label="Created By">{asset.createdBy?.fullName || '—'}</Field>
       </dl>
 
       {/* Active Allocation + Return button (only when currently allocated) */}

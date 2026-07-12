@@ -1,4 +1,4 @@
-const User = require('../models/user.model');
+const Employee = require('../models/employee.model');
 const Department = require('../models/department.model');
 const ApiError = require('../utils/ApiError');
 const { paginate } = require('../utils/queryFeatures');
@@ -14,21 +14,19 @@ async function assertDepartmentExists(departmentId) {
 
 async function create(payload) {
   await assertDepartmentExists(payload.department);
-  // Use .create() (not insertMany) so the pre-save password hook runs.
-  const user = await User.create(payload);
-  return user.populate(POPULATE);
+  const employee = await Employee.create(payload);
+  return employee.populate(POPULATE);
 }
 
 async function list(query) {
   const filter = {};
-  if (query.role) filter.role = query.role;
   if (query.status) filter.status = query.status;
   if (query.department) filter.department = query.department;
 
-  return paginate(User, {
+  return paginate(Employee, {
     filter,
     search: query.search,
-    searchFields: ['name', 'email'],
+    searchFields: ['name', 'email', 'designation'],
     sort: query.sort,
     page: query.page,
     limit: query.limit,
@@ -37,33 +35,31 @@ async function list(query) {
 }
 
 async function getById(id) {
-  const user = await User.findById(id).populate(POPULATE);
-  if (!user) throw ApiError.notFound('User not found');
-  return user;
+  const employee = await Employee.findById(id).populate(POPULATE);
+  if (!employee) throw ApiError.notFound('Employee not found');
+  return employee;
 }
 
 async function update(id, payload) {
-  const user = await User.findById(id).select('+password');
-  if (!user) throw ApiError.notFound('User not found');
-
   if (payload.department !== undefined) {
     await assertDepartmentExists(payload.department);
   }
-
-  // Assign field-by-field so the pre-save hook re-hashes a changed password.
-  Object.assign(user, payload);
-  await user.save();
-  return user.populate(POPULATE);
+  const employee = await Employee.findByIdAndUpdate(id, payload, {
+    new: true,
+    runValidators: true,
+  }).populate(POPULATE);
+  if (!employee) throw ApiError.notFound('Employee not found');
+  return employee;
 }
 
 async function remove(id) {
-  const user = await User.findById(id);
-  if (!user) throw ApiError.notFound('User not found');
+  const employee = await Employee.findById(id);
+  if (!employee) throw ApiError.notFound('Employee not found');
 
-  // Detach this user from any department they head to avoid dangling refs.
+  // Detach this employee from any department they head to avoid dangling refs.
   await Department.updateMany({ departmentHead: id }, { $set: { departmentHead: null } });
 
-  await user.deleteOne();
+  await employee.deleteOne();
   return { id };
 }
 

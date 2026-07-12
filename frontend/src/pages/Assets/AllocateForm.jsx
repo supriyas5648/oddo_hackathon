@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useEmployees, useCreateAllocation } from '../../hooks/useAllocations';
+import { useAuth } from '../../context/AuthContext';
 
 // Client-side validation mirroring the backend rules.
 function validate(form) {
@@ -29,6 +30,7 @@ export default function AllocateForm({ asset, onSuccess, onCancel }) {
   });
   const [errors, setErrors] = useState({});
 
+  const { manager } = useAuth();
   const { data: employees = [], isLoading: empLoading } = useEmployees();
   const createMut = useCreateAllocation();
 
@@ -88,11 +90,18 @@ export default function AllocateForm({ asset, onSuccess, onCancel }) {
           <option value="">{empLoading ? 'Loading employees…' : 'Select employee…'}</option>
           {employees.map((u) => (
             <option key={u._id} value={u._id}>
-              {u.name} — {u.role}
+              {u.name}
+              {u.designation ? ` — ${u.designation}` : ''}
             </option>
           ))}
         </select>
         <Err name="employee" />
+      </div>
+
+      {/* Allocated By — always the logged-in manager (read-only, auto-set) */}
+      <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+        <span className="text-sm text-slate-500">Allocated By</span>
+        <span className="text-sm font-medium text-slate-800">{manager?.fullName}</span>
       </div>
 
       {/* Expected Return Date */}

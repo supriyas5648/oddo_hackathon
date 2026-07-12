@@ -15,9 +15,9 @@ export async function fetchDepartments() {
   return data.data;
 }
 
-// Active users eligible to receive an allocation.
+// Active employees eligible to receive an allocation.
 export async function fetchEmployees() {
-  const { data } = await api.get('/users', {
+  const { data } = await api.get('/employees', {
     params: { limit: 100, sort: 'name', status: 'Active' },
   });
   return data.data;

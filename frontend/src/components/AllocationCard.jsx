@@ -27,7 +27,7 @@ export default function AllocationCard({ allocation }) {
       </div>
       <dl className="divide-y divide-brand-100/70">
         <Row label="Employee">{allocation.employee?.name}</Row>
-        <Row label="Allocated By">{allocation.allocatedBy?.name || '—'}</Row>
+        <Row label="Allocated By">{allocation.allocatedBy?.fullName || '—'}</Row>
         <Row label="Allocation Date">{formatDate(allocation.allocationDate)}</Row>
         <Row label="Expected Return">{formatDate(allocation.expectedReturnDate)}</Row>
         <Row label="Purpose">{allocation.purpose || '—'}</Row>

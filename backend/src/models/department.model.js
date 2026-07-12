@@ -35,7 +35,7 @@ const departmentSchema = new Schema(
     },
     departmentHead: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Employee',
       default: null,
     },
     status: {

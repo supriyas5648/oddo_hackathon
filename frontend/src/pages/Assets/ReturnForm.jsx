@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useReturnAllocation } from '../../hooks/useAllocations';
+import { useAuth } from '../../context/AuthContext';
 import { ASSET_CONDITIONS } from '../../constants/assetOptions';
 
 // Today's date as YYYY-MM-DD for the default return date.
@@ -18,6 +19,7 @@ export default function ReturnForm({ asset, allocation, onSuccess, onCancel }) {
     returnRemarks: '',
   });
   const [errors, setErrors] = useState({});
+  const { manager } = useAuth();
   const returnMut = useReturnAllocation();
 
   const setField = (name, value) => {
@@ -66,6 +68,12 @@ export default function ReturnForm({ asset, allocation, onSuccess, onCancel }) {
             readOnly
           />
         </div>
+      </div>
+
+      {/* Returned By — always the logged-in manager (read-only, auto-set) */}
+      <div className="flex items-center justify-between rounded-lg bg-slate-50 px-4 py-2.5">
+        <span className="text-sm text-slate-500">Returned By</span>
+        <span className="text-sm font-medium text-slate-800">{manager?.fullName}</span>
       </div>
 
       {/* Return date */}

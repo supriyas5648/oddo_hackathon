@@ -4,16 +4,19 @@ const env = require('../config/env');
 
 const { Schema } = mongoose;
 
-const ROLES = ['Admin', 'Asset Manager', 'Department Head', 'Employee'];
-const STATUS = ['Active', 'Inactive'];
+const ROLES = ['Manager', 'Admin'];
 
-const userSchema = new Schema(
+/**
+ * Manager = the only account type that can authenticate into AssetFlow.
+ * Employees (see employee.model.js) never log in.
+ */
+const managerSchema = new Schema(
   {
-    name: {
+    fullName: {
       type: String,
-      required: [true, 'Name is required'],
+      required: [true, 'Full name is required'],
       trim: true,
-      maxlength: [120, 'Name cannot exceed 120 characters'],
+      maxlength: [120, 'Full name cannot exceed 120 characters'],
     },
     email: {
       type: String,
@@ -27,34 +30,28 @@ const userSchema = new Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters'],
-      // Never return the hash by default; explicitly .select('+password') when needed.
-      select: false,
-    },
-    department: {
-      type: Schema.Types.ObjectId,
-      ref: 'Department',
-      default: null,
+      select: false, // never returned by default
     },
     role: {
       type: String,
       enum: { values: ROLES, message: '{VALUE} is not a supported role' },
-      default: 'Employee',
-      index: true,
+      default: 'Manager',
     },
-    status: {
-      type: String,
-      enum: { values: STATUS, message: 'Status must be either Active or Inactive' },
-      default: 'Active',
-      index: true,
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    lastLogin: {
+      type: Date,
+      default: null,
     },
   },
   {
     timestamps: true,
     toJSON: {
       virtuals: true,
-      // Defensive: strip the hash even if it was explicitly selected.
       transform(_doc, ret) {
-        delete ret.password;
+        delete ret.password; // defensive: strip hash even if selected
         return ret;
       },
     },
@@ -63,7 +60,7 @@ const userSchema = new Schema(
 );
 
 // Hash the password whenever it is set/changed.
-userSchema.pre('save', async function hashPassword(next) {
+managerSchema.pre('save', async function hashPassword(next) {
   if (!this.isModified('password')) return next();
   try {
     const salt = await bcrypt.genSalt(env.bcryptSaltRounds);
@@ -74,12 +71,10 @@ userSchema.pre('save', async function hashPassword(next) {
   }
 });
 
-// Instance helper for later auth work (not used yet, but ready).
-userSchema.methods.comparePassword = function comparePassword(candidate) {
+managerSchema.methods.comparePassword = function comparePassword(candidate) {
   return bcrypt.compare(candidate, this.password);
 };
 
-userSchema.statics.ROLES = ROLES;
-userSchema.statics.STATUS = STATUS;
+managerSchema.statics.ROLES = ROLES;
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('Manager', managerSchema);

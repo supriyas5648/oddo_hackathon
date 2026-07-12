@@ -97,7 +97,7 @@ const assetSchema = new Schema(
     },
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Manager',
       default: null,
     },
   },

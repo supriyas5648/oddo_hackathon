@@ -3,7 +3,8 @@ const catchAsync = require('../utils/catchAsync');
 const { sendSuccess } = require('../utils/apiResponse');
 
 const create = catchAsync(async (req, res) => {
-  const data = await assetService.create(req.body);
+  // createdBy is recorded as the logged-in manager.
+  const data = await assetService.create(req.body, req.manager._id);
   sendSuccess(res, { statusCode: 201, message: 'Asset created', data });
 });
 

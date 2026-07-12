@@ -8,7 +8,7 @@ const createAllocation = {
   body: Joi.object({
     asset: objectId.required().label('asset'),
     employee: objectId.required().label('employee'),
-    allocatedBy: objectId.allow(null).label('allocatedBy'),
+    // allocatedBy is intentionally NOT accepted — it's the logged-in manager.
     allocationDate: Joi.date().iso(),
     // Expected return must not predate the allocation date — but only enforce
     // that when allocationDate is actually provided (it defaults to now in the

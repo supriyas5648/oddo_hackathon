@@ -1,19 +1,20 @@
 const Allocation = require('../models/allocation.model');
 const Asset = require('../models/asset.model');
-const User = require('../models/user.model');
+const Employee = require('../models/employee.model');
 const ApiError = require('../utils/ApiError');
 const { paginate } = require('../utils/queryFeatures');
 
 const POPULATE = [
   { path: 'asset', select: 'name assetTag status' },
-  { path: 'employee', select: 'name email role status' },
-  { path: 'allocatedBy', select: 'name email role' },
+  { path: 'employee', select: 'name email designation status' },
+  { path: 'allocatedBy', select: 'fullName email' },
+  { path: 'returnedBy', select: 'fullName email' },
 ];
 
 /** Employee must exist AND be Active to receive an allocation. */
 async function resolveEmployee(employeeId) {
-  const employee = await User.findById(employeeId).select('_id status');
-  if (!employee) throw ApiError.badRequest('employee does not reference an existing user');
+  const employee = await Employee.findById(employeeId).select('_id status');
+  if (!employee) throw ApiError.badRequest('employee does not reference an existing employee');
   if (employee.status !== 'Active') {
     throw ApiError.conflict('Employee is not Active and cannot receive allocations');
   }
@@ -21,28 +22,15 @@ async function resolveEmployee(employeeId) {
 }
 
 /**
- * Resolve the actor performing the allocation. If not supplied (no auth yet),
- * fall back to any Admin user so the "Allocated By" field is meaningful.
- */
-async function resolveAllocatedBy(allocatedById) {
-  if (allocatedById) {
-    const actor = await User.findById(allocatedById).select('_id');
-    if (!actor) throw ApiError.badRequest('allocatedBy does not reference an existing user');
-    return actor._id;
-  }
-  const admin = await User.findOne({ role: 'Admin' }).select('_id');
-  return admin ? admin._id : null;
-}
-
-/**
- * Allocate an asset to an employee.
+ * Allocate an asset to an employee. `managerId` is the logged-in manager and
+ * is stored as `allocatedBy` — the caller never chooses it.
  *
  * Concurrency-safe without transactions: we atomically "claim" the asset by
  * flipping Available -> Allocated in a single findOneAndUpdate. Only one
  * concurrent request can win that swap. If creating the allocation then fails,
  * we compensate by reverting the asset back to Available.
  */
-async function create(payload) {
+async function create(payload, managerId) {
   const { asset: assetId, employee: employeeId } = payload;
 
   // 1. Validate the employee up front (cheap, clear error).
@@ -73,11 +61,10 @@ async function create(payload) {
 
   // 5. Create the allocation; revert the asset on any failure.
   try {
-    const allocatedBy = await resolveAllocatedBy(payload.allocatedBy);
     const allocation = await Allocation.create({
       asset: assetId,
       employee: employeeId,
-      allocatedBy,
+      allocatedBy: managerId,
       allocationDate: payload.allocationDate,
       expectedReturnDate: payload.expectedReturnDate,
       purpose: payload.purpose,
@@ -103,7 +90,7 @@ async function create(payload) {
  * the asset. We then set the asset back to Available with its reported
  * condition. The allocation row is preserved as history (never deleted).
  */
-async function returnAsset(allocationId, payload) {
+async function returnAsset(allocationId, payload, managerId) {
   const { returnCondition } = payload;
   const returnDate = payload.returnDate || new Date();
 
@@ -115,6 +102,7 @@ async function returnAsset(allocationId, payload) {
         actualReturnDate: returnDate,
         returnCondition,
         returnRemarks: payload.returnRemarks || '',
+        returnedBy: managerId, // logged-in manager, set server-side
       },
     },
     { new: true }

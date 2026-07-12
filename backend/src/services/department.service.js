@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 const Department = require('../models/department.model');
-const User = require('../models/user.model');
+const Employee = require('../models/employee.model');
 const ApiError = require('../utils/ApiError');
 const { paginate } = require('../utils/queryFeatures');
 
 const POPULATE = [
   { path: 'parentDepartment', select: 'name code' },
-  { path: 'departmentHead', select: 'name email role' },
+  { path: 'departmentHead', select: 'name email designation' },
 ];
 
 /** Ensure a referenced parent department exists (when provided). */
@@ -16,11 +16,11 @@ async function assertParentExists(parentId) {
   if (!parent) throw ApiError.badRequest('parentDepartment does not reference an existing department');
 }
 
-/** Ensure a referenced department head is a real user (when provided). */
+/** Ensure a referenced department head is a real employee (when provided). */
 async function assertHeadExists(headId) {
   if (!headId) return;
-  const user = await User.findById(headId).select('_id');
-  if (!user) throw ApiError.badRequest('departmentHead does not reference an existing user');
+  const employee = await Employee.findById(headId).select('_id');
+  if (!employee) throw ApiError.badRequest('departmentHead does not reference an existing employee');
 }
 
 /**
@@ -104,9 +104,9 @@ async function remove(id) {
   if (!department) throw ApiError.notFound('Department not found');
 
   // Referential-integrity guards: block deletion if it would orphan data.
-  const [childCount, userCount] = await Promise.all([
+  const [childCount, employeeCount] = await Promise.all([
     Department.countDocuments({ parentDepartment: id }),
-    User.countDocuments({ department: id }),
+    Employee.countDocuments({ department: id }),
   ]);
 
   if (childCount > 0) {
@@ -114,8 +114,10 @@ async function remove(id) {
       `Cannot delete: ${childCount} sub-department(s) reference this department`
     );
   }
-  if (userCount > 0) {
-    throw ApiError.conflict(`Cannot delete: ${userCount} user(s) are assigned to this department`);
+  if (employeeCount > 0) {
+    throw ApiError.conflict(
+      `Cannot delete: ${employeeCount} employee(s) are assigned to this department`
+    );
   }
 
   await department.deleteOne();

@@ -1,16 +1,20 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
+import RequireAuth from './components/RequireAuth';
+import Login from './pages/Login';
 import Assets from './pages/Assets/Assets';
 
 export default function App() {
   return (
-    <Layout>
-      <Routes>
+    <Routes>
+      {/* Public */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Protected app (RequireAuth renders the Layout shell) */}
+      <Route element={<RequireAuth />}>
         <Route path="/" element={<Navigate to="/assets" replace />} />
         <Route path="/assets" element={<Assets />} />
-        {/* Fallback: anything unknown -> assets */}
         <Route path="*" element={<Navigate to="/assets" replace />} />
-      </Routes>
-    </Layout>
+      </Route>
+    </Routes>
   );
 }
