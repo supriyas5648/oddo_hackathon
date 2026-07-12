@@ -1,8 +1,14 @@
-import { useAsset } from '../../hooks/useAssets';
+import { useState } from 'react';
+import { useAsset, useAssetLifecycle } from '../../hooks/useAssets';
+import { useActiveAllocation } from '../../hooks/useAllocations';
 import StatusBadge from '../../components/StatusBadge';
+import AllocationCard from '../../components/AllocationCard';
+import LifecycleTimeline from '../../components/LifecycleTimeline';
+import Modal from '../../components/Modal';
 import Spinner from '../../components/Spinner';
 import { CONDITION_STYLES } from '../../constants/assetOptions';
 import { formatCurrency, formatDate } from '../../utils/format';
+import ReturnForm from './ReturnForm';
 
 function Field({ label, children }) {
   return (
@@ -14,8 +20,13 @@ function Field({ label, children }) {
 }
 
 export default function AssetDetails({ assetId, onEdit }) {
+  const [returnOpen, setReturnOpen] = useState(false);
   // Fetch fresh detail so the modal always reflects the latest data.
   const { data: asset, isLoading, isError, error } = useAsset(assetId);
+  // Active allocation (if any) for the "Current Allocation" card.
+  const { data: activeAllocation } = useActiveAllocation(assetId);
+  // Lifecycle timeline (created / allocated / returned).
+  const { data: lifecycle } = useAssetLifecycle(assetId);
 
   if (isLoading) return <Spinner label="Loading asset…" />;
   if (isError) return <p className="py-8 text-center text-sm text-red-600">{error.message}</p>;
@@ -76,6 +87,21 @@ export default function AssetDetails({ assetId, onEdit }) {
         <Field label="Created By">{asset.createdBy?.name || '—'}</Field>
       </dl>
 
+      {/* Active Allocation + Return button (only when currently allocated) */}
+      {activeAllocation && (
+        <div className="space-y-3">
+          <AllocationCard allocation={activeAllocation} />
+          <div className="flex justify-end">
+            <button className="btn-primary" onClick={() => setReturnOpen(true)}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+              </svg>
+              Return Asset
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Documents */}
       <div>
         <h4 className="mb-2 text-sm font-semibold text-slate-700">Documents</h4>
@@ -100,20 +126,23 @@ export default function AssetDetails({ assetId, onEdit }) {
         )}
       </div>
 
-      {/* Activity Timeline — placeholder, to be populated by a future module */}
+      {/* Asset Lifecycle — derived from asset + allocation history */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold text-slate-700">Activity Timeline</h4>
-        <ol className="relative border-l border-slate-200 pl-5">
-          <li className="mb-1">
-            <span className="absolute -left-1.5 mt-1 h-3 w-3 rounded-full bg-brand-500 ring-4 ring-white" />
-            <p className="text-sm font-medium text-slate-800">Asset Created</p>
-            <p className="text-xs text-slate-400">{formatDate(asset.createdAt)}</p>
-          </li>
-        </ol>
-        <p className="mt-3 text-xs italic text-slate-400">
-          Allocation, maintenance, and booking events will appear here.
-        </p>
+        <h4 className="mb-4 text-sm font-semibold text-slate-700">Asset Lifecycle</h4>
+        <LifecycleTimeline events={lifecycle?.events || []} />
       </div>
+
+      {/* Return modal (stacks over the details modal) */}
+      <Modal open={returnOpen} onClose={() => setReturnOpen(false)} title="Return Asset" maxWidth="max-w-xl">
+        {activeAllocation && (
+          <ReturnForm
+            asset={asset}
+            allocation={activeAllocation}
+            onSuccess={() => setReturnOpen(false)}
+            onCancel={() => setReturnOpen(false)}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

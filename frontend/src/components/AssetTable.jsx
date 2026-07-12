@@ -1,10 +1,11 @@
 import StatusBadge from './StatusBadge';
+import AllocateButton from './AllocateButton';
 
 /**
  * Desktop table of assets. Presentational only — all actions bubble up
  * through the on* callbacks so the parent owns state and data-fetching.
  */
-export default function AssetTable({ assets, onView, onEdit, onDelete, deletingId }) {
+export default function AssetTable({ assets, onView, onEdit, onDelete, onAllocate, deletingId }) {
   return (
     <div className="hidden overflow-hidden rounded-xl border border-slate-200 md:block">
       <table className="min-w-full divide-y divide-slate-200">
@@ -43,6 +44,7 @@ export default function AssetTable({ assets, onView, onEdit, onDelete, deletingI
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-right">
                 <div className="inline-flex items-center gap-1">
+                  <AllocateButton asset={asset} onAllocate={onAllocate} />
                   <button className="btn-ghost px-2 py-1" onClick={() => onView(asset)} title="View">
                     View
                   </button>

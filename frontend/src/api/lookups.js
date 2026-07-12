@@ -14,3 +14,11 @@ export async function fetchDepartments() {
   });
   return data.data;
 }
+
+// Active users eligible to receive an allocation.
+export async function fetchEmployees() {
+  const { data } = await api.get('/users', {
+    params: { limit: 100, sort: 'name', status: 'Active' },
+  });
+  return data.data;
+}

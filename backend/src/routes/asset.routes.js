@@ -14,6 +14,9 @@ router
 // Declared before '/:id' so "stats" isn't matched as an asset id.
 router.get('/stats', controller.stats);
 
+// Lifecycle timeline (created / allocated / returned events), newest first.
+router.get('/:id/lifecycle', validate(v.assetId), controller.lifecycle);
+
 router
   .route('/:id')
   .get(validate(v.assetId), controller.getById)

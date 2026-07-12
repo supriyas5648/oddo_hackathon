@@ -1,10 +1,11 @@
 import StatusBadge from './StatusBadge';
+import AllocateButton from './AllocateButton';
 
 /**
  * Mobile-friendly card representation of an asset. Used on small screens
  * where the table would overflow.
  */
-export default function AssetCard({ asset, onView, onEdit, onDelete, deletingId }) {
+export default function AssetCard({ asset, onView, onEdit, onDelete, onAllocate, deletingId }) {
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -27,7 +28,22 @@ export default function AssetCard({ asset, onView, onEdit, onDelete, deletingId 
         </div>
       </dl>
 
-      <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3">
+      {/* Allocate row (only shown when the asset is Available/Allocated) */}
+      {(asset.status === 'Available' || asset.status === 'Allocated') && (
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          {asset.status === 'Available' ? (
+            <button className="btn-primary w-full py-1.5" onClick={() => onAllocate(asset)}>
+              Allocate
+            </button>
+          ) : (
+            <button className="btn-secondary w-full cursor-not-allowed py-1.5 text-slate-400" disabled>
+              Allocated
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
         <button className="btn-secondary flex-1 py-1.5" onClick={() => onView(asset)}>
           View
         </button>

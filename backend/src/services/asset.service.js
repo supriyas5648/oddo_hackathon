@@ -3,6 +3,7 @@ const Counter = require('../models/counter.model');
 const Category = require('../models/category.model');
 const Department = require('../models/department.model');
 const User = require('../models/user.model');
+const Allocation = require('../models/allocation.model');
 const ApiError = require('../utils/ApiError');
 const { paginate } = require('../utils/queryFeatures');
 
@@ -165,4 +166,51 @@ async function stats() {
   return { total, byStatus };
 }
 
-module.exports = { create, list, getById, update, remove, stats, generateAssetTag };
+/**
+ * Build the asset lifecycle timeline from existing data — no separate history
+ * collection. Events are derived from the asset's creation plus every
+ * allocation/return, then sorted newest-first.
+ */
+async function lifecycle(id) {
+  const asset = await Asset.findById(id).select('name assetTag createdAt');
+  if (!asset) throw ApiError.notFound('Asset not found');
+
+  const allocations = await Allocation.find({ asset: id })
+    .populate({ path: 'employee', select: 'name' })
+    .select('employee allocationDate actualReturnDate status returnCondition')
+    .lean();
+
+  const events = [
+    { type: 'created', title: 'Asset Created', date: asset.createdAt },
+  ];
+
+  allocations.forEach((a) => {
+    const employeeName = a.employee?.name || 'Unknown';
+    events.push({
+      type: 'allocated',
+      title: `Allocated to ${employeeName}`,
+      date: a.allocationDate,
+      employee: a.employee ? { _id: a.employee._id, name: a.employee.name } : null,
+      allocationId: a._id,
+    });
+
+    // A return event only exists once the allocation has actually been returned.
+    if (a.status === 'Returned' && a.actualReturnDate) {
+      events.push({
+        type: 'returned',
+        title: `Returned by ${employeeName}`,
+        date: a.actualReturnDate,
+        employee: a.employee ? { _id: a.employee._id, name: a.employee.name } : null,
+        condition: a.returnCondition || null,
+        allocationId: a._id,
+      });
+    }
+  });
+
+  // Newest first. Ties (same timestamp) keep insertion order deterministically.
+  events.sort((x, y) => new Date(y.date) - new Date(x.date));
+
+  return { asset: { _id: asset._id, name: asset.name, assetTag: asset.assetTag }, events };
+}
+
+module.exports = { create, list, getById, update, remove, stats, lifecycle, generateAssetTag };

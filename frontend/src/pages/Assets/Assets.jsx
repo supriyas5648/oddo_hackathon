@@ -16,6 +16,7 @@ import Modal from '../../components/Modal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import AssetForm from './AssetForm';
 import AssetDetails from './AssetDetails';
+import AllocateForm from './AllocateForm';
 
 const DEFAULT_FILTERS = { search: '', status: '', department: '', category: '', page: 1, limit: 10 };
 
@@ -27,6 +28,7 @@ export default function Assets() {
   const [editing, setEditing] = useState(null); // asset | null (null = create)
   const [viewingId, setViewingId] = useState(null);
   const [toDelete, setToDelete] = useState(null);
+  const [allocating, setAllocating] = useState(null); // asset being allocated | null
 
   const { data, isLoading, isError, error, isFetching } = useAssets(filters);
   const { data: categories = [] } = useCategories();
@@ -184,6 +186,7 @@ export default function Assets() {
               onView={(a) => setViewingId(a._id)}
               onEdit={openEdit}
               onDelete={(a) => setToDelete(a)}
+              onAllocate={(a) => setAllocating(a)}
               deletingId={deleteMut.isPending ? toDelete?._id : null}
             />
             {/* Mobile cards */}
@@ -195,6 +198,7 @@ export default function Assets() {
                   onView={(x) => setViewingId(x._id)}
                   onEdit={openEdit}
                   onDelete={(x) => setToDelete(x)}
+                  onAllocate={(x) => setAllocating(x)}
                   deletingId={deleteMut.isPending ? toDelete?._id : null}
                 />
               ))}
@@ -244,6 +248,17 @@ export default function Assets() {
       {/* Details modal */}
       <Modal open={Boolean(viewingId)} onClose={() => setViewingId(null)} title="Asset Details">
         {viewingId && <AssetDetails assetId={viewingId} onEdit={openEdit} />}
+      </Modal>
+
+      {/* Allocate modal */}
+      <Modal open={Boolean(allocating)} onClose={() => setAllocating(null)} title="Allocate Asset">
+        {allocating && (
+          <AllocateForm
+            asset={allocating}
+            onSuccess={() => setAllocating(null)}
+            onCancel={() => setAllocating(null)}
+          />
+        )}
       </Modal>
 
       {/* Delete confirmation */}

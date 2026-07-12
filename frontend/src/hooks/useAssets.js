@@ -4,6 +4,7 @@ import {
   fetchAssets,
   fetchAssetStats,
   fetchAsset,
+  fetchAssetLifecycle,
   createAsset,
   updateAsset,
   deleteAsset,
@@ -15,7 +16,17 @@ const assetKeys = {
   list: (filters) => ['assets', 'list', filters],
   detail: (id) => ['assets', 'detail', id],
   stats: ['assets', 'stats'],
+  lifecycle: (id) => ['assets', 'lifecycle', id],
 };
+
+/** Lifecycle timeline (created / allocated / returned) for an asset. */
+export function useAssetLifecycle(id) {
+  return useQuery({
+    queryKey: assetKeys.lifecycle(id),
+    queryFn: () => fetchAssetLifecycle(id),
+    enabled: Boolean(id),
+  });
+}
 
 /** Live status counts for the dashboard stat cards. */
 export function useAssetStats() {

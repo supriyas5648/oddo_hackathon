@@ -26,9 +26,14 @@ const createAsset = {
     location: Joi.string().trim().allow('').max(200),
     purchaseDate: Joi.date().iso(),
     purchaseCost: Joi.number().min(0),
-    // Warranty must not predate purchase (when both are provided).
-    warrantyExpiry: Joi.date().iso().min(Joi.ref('purchaseDate')).messages({
-      'date.min': 'warrantyExpiry cannot be before purchaseDate',
+    // Warranty must not predate purchase — only enforced when purchaseDate is
+    // provided (otherwise the ref resolves to undefined and Joi errors).
+    warrantyExpiry: Joi.when('purchaseDate', {
+      is: Joi.exist(),
+      then: Joi.date().iso().min(Joi.ref('purchaseDate')).messages({
+        'date.min': 'warrantyExpiry cannot be before purchaseDate',
+      }),
+      otherwise: Joi.date().iso(),
     }),
     condition: Joi.string().valid(...CONDITION),
     status: Joi.string().valid(...STATUS),

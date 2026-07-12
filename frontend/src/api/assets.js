@@ -22,6 +22,11 @@ export async function fetchAsset(id) {
   return data.data;
 }
 
+export async function fetchAssetLifecycle(id) {
+  const { data } = await api.get(`/assets/${id}/lifecycle`);
+  return data.data; // { asset, events: [{ type, title, date, ... }] }
+}
+
 export async function createAsset(payload) {
   const { data } = await api.post('/assets', payload);
   return data.data;
