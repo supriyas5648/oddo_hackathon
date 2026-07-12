@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import Login from './pages/Login';
 import Assets from './pages/Assets/Assets';
+import Maintenance from './pages/Maintenance/Maintenance';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Navigate to="/assets" replace />} />
         <Route path="/assets" element={<Assets />} />
+        <Route path="/maintenance" element={<Maintenance />} />
         <Route path="*" element={<Navigate to="/assets" replace />} />
       </Route>
     </Routes>

@@ -10,21 +10,19 @@ function initials(name = '') {
 
 const NAV = [
   { to: '/assets', label: 'Assets', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-  { to: '/departments', label: 'Departments', icon: 'M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1M9 13h1m4 0h1', disabled: true },
-  { to: '/categories', label: 'Categories', icon: 'M4 6h16M4 12h16M4 18h16', disabled: true },
+  {
+    to: '/maintenance',
+    label: 'Maintenance',
+    icon: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085',
+  },
+  // Departments & Categories are master data for the Asset module only — they
+  // are managed via the Asset form/filters, so they have no nav entry of their
+  // own. (Their backend APIs and collections remain in place.)
 ];
 
 function NavItem({ item }) {
   const base =
     'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors';
-  if (item.disabled) {
-    return (
-      <span className={`${base} cursor-not-allowed text-slate-400`} title="Coming soon">
-        <Icon d={item.icon} />
-        {item.label}
-      </span>
-    );
-  }
   return (
     <NavLink
       to={item.to}

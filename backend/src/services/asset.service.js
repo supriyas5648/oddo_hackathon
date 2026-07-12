@@ -4,6 +4,7 @@ const Category = require('../models/category.model');
 const Department = require('../models/department.model');
 const Manager = require('../models/manager.model');
 const Allocation = require('../models/allocation.model');
+const Maintenance = require('../models/maintenance.model');
 const ApiError = require('../utils/ApiError');
 const { paginate } = require('../utils/queryFeatures');
 
@@ -102,7 +103,7 @@ async function getById(id) {
 }
 
 async function update(id, payload) {
-  const asset = await Asset.findById(id);
+  const asset = await Asset.findById(id).select('serialNumber');
   if (!asset) throw ApiError.notFound('Asset not found');
 
   await assertReferencesExist(payload);
@@ -123,9 +124,15 @@ async function update(id, payload) {
   // assetTag is immutable once issued.
   delete payload.assetTag;
 
-  Object.assign(asset, payload);
-  await asset.save();
-  return asset.populate(POPULATE);
+  // findByIdAndUpdate validates ONLY the fields being changed (unlike .save(),
+  // which validates the whole document). This keeps legacy assets that pre-date
+  // the required department/category editable, while still rejecting an attempt
+  // to set either of those to an invalid value.
+  const updated = await Asset.findByIdAndUpdate(id, payload, {
+    new: true,
+    runValidators: true,
+  }).populate(POPULATE);
+  return updated;
 }
 
 /**
@@ -133,16 +140,21 @@ async function update(id, payload) {
  * audit trails, and references remain intact.
  */
 async function remove(id) {
-  const asset = await Asset.findById(id);
+  const asset = await Asset.findById(id).select('status');
   if (!asset) throw ApiError.notFound('Asset not found');
 
   if (asset.status === 'Disposed') {
     throw ApiError.conflict('Asset is already disposed');
   }
 
-  asset.status = 'Disposed';
-  await asset.save();
-  return asset.populate(POPULATE);
+  // Atomic status flip (not .save()) so disposing never trips validation on
+  // legacy assets that lack the now-required department/category.
+  const disposed = await Asset.findByIdAndUpdate(
+    id,
+    { $set: { status: 'Disposed' } },
+    { new: true }
+  ).populate(POPULATE);
+  return disposed;
 }
 
 /**
@@ -167,51 +179,122 @@ async function stats() {
   return { total, byStatus };
 }
 
+// Logical workflow order — used ONLY to break ties when two events share the
+// exact same timestamp, so the later workflow step still sorts on top.
+const LIFECYCLE_RANK = {
+  created: 0,
+  allocated: 1,
+  transferred: 2, // future-ready
+  returned: 3,
+  maintenance_started: 4,
+  maintenance_completed: 5,
+};
+
+/** Parse a value to a millisecond timestamp, or null if missing/invalid. */
+function toTimestamp(value) {
+  if (!value) return null;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
 /**
  * Build the asset lifecycle timeline from existing data — no separate history
  * collection. Events are derived from the asset's creation plus every
- * allocation/return, then sorted newest-first.
+ * allocation/return/maintenance, then sorted strictly by their real business
+ * event date (newest first), NOT by document insertion order.
  */
 async function lifecycle(id) {
   const asset = await Asset.findById(id).select('name assetTag createdAt');
   if (!asset) throw ApiError.notFound('Asset not found');
 
-  const allocations = await Allocation.find({ asset: id })
-    .populate({ path: 'employee', select: 'name' })
-    .select('employee allocationDate actualReturnDate status returnCondition')
-    .lean();
+  const [allocations, maintenances] = await Promise.all([
+    Allocation.find({ asset: id })
+      .populate({ path: 'employee', select: 'name' })
+      .select('employee allocationDate actualReturnDate status returnCondition')
+      .lean(),
+    Maintenance.find({ asset: id })
+      .select('technicianName maintenanceStartDate maintenanceCompletedDate completedCondition status')
+      .lean(),
+  ]);
 
-  const events = [
-    { type: 'created', title: 'Asset Created', date: asset.createdAt },
-  ];
+  const events = [];
+
+  // Asset Created — always present. Fall back to the ObjectId's embedded
+  // timestamp if createdAt is somehow missing (e.g. a hand-inserted doc), so
+  // this event never carries an invalid date.
+  events.push({
+    type: 'created',
+    title: 'Asset Created',
+    date: asset.createdAt || asset._id.getTimestamp(),
+  });
 
   allocations.forEach((a) => {
     const employeeName = a.employee?.name || 'Unknown';
+    const employee = a.employee ? { _id: a.employee._id, name: a.employee.name } : null;
+
     events.push({
       type: 'allocated',
       title: `Allocated to ${employeeName}`,
-      date: a.allocationDate,
-      employee: a.employee ? { _id: a.employee._id, name: a.employee.name } : null,
+      date: a.allocationDate || a._id.getTimestamp(),
+      employee,
       allocationId: a._id,
     });
 
-    // A return event only exists once the allocation has actually been returned.
+    // Returned — only once actualReturnDate exists (req 4: ignore null dates).
     if (a.status === 'Returned' && a.actualReturnDate) {
       events.push({
         type: 'returned',
         title: `Returned by ${employeeName}`,
         date: a.actualReturnDate,
-        employee: a.employee ? { _id: a.employee._id, name: a.employee.name } : null,
+        employee,
         condition: a.returnCondition || null,
         allocationId: a._id,
       });
     }
   });
 
-  // Newest first. Ties (same timestamp) keep insertion order deterministically.
-  events.sort((x, y) => new Date(y.date) - new Date(x.date));
+  maintenances.forEach((m) => {
+    // Maintenance Started — only once a technician begins the repair.
+    if (m.maintenanceStartDate) {
+      events.push({
+        type: 'maintenance_started',
+        title: 'Maintenance Started',
+        date: m.maintenanceStartDate,
+        technician: m.technicianName || null,
+        maintenanceId: m._id,
+      });
+    }
+    // Maintenance Completed — only once it's actually completed.
+    if (m.status === 'Completed' && m.maintenanceCompletedDate) {
+      events.push({
+        type: 'maintenance_completed',
+        title: 'Maintenance Completed',
+        date: m.maintenanceCompletedDate,
+        condition: m.completedCondition || null,
+        maintenanceId: m._id,
+      });
+    }
+  });
 
-  return { asset: { _id: asset._id, name: asset.name, assetTag: asset.assetTag }, events };
+  // Transfers (future-ready): once a Transfer model exists, push events here
+  // with type 'transferred' and date = transfer.transferDate. They will sort
+  // in automatically via the timestamp + LIFECYCLE_RANK logic below.
+
+  // Sort strictly by real event date (descending / newest first). Drop any
+  // event whose date is null/invalid so a bad date can never scramble the
+  // order (an invalid date in a subtraction comparator yields NaN, which makes
+  // Array.sort produce arbitrary results). On an exact timestamp tie, fall back
+  // to the logical workflow order so the later step stays on top.
+  const sorted = events
+    .map((e) => ({ event: e, ts: toTimestamp(e.date) }))
+    .filter((e) => e.ts !== null)
+    .sort((a, b) => {
+      if (b.ts !== a.ts) return b.ts - a.ts;
+      return (LIFECYCLE_RANK[b.event.type] ?? 0) - (LIFECYCLE_RANK[a.event.type] ?? 0);
+    })
+    .map((e) => e.event);
+
+  return { asset: { _id: asset._id, name: asset.name, assetTag: asset.assetTag }, events: sorted };
 }
 
 module.exports = { create, list, getById, update, remove, stats, lifecycle, generateAssetTag };

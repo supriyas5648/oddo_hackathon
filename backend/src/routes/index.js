@@ -4,6 +4,7 @@ const categoryRoutes = require('./category.routes');
 const employeeRoutes = require('./employee.routes');
 const assetRoutes = require('./asset.routes');
 const allocationRoutes = require('./allocation.routes');
+const maintenanceRoutes = require('./maintenance.routes');
 const authRoutes = require('./auth.routes');
 const { protect } = require('../middlewares/auth');
 
@@ -21,6 +22,7 @@ router.get('/', (req, res) => {
       employees: '/api/v1/employees',
       assets: '/api/v1/assets',
       allocations: '/api/v1/allocations',
+      maintenance: '/api/v1/maintenance',
     },
   });
 });
@@ -34,5 +36,6 @@ router.use('/categories', protect, categoryRoutes);
 router.use('/employees', protect, employeeRoutes);
 router.use('/assets', protect, assetRoutes);
 router.use('/allocations', protect, allocationRoutes);
+router.use('/maintenance', protect, maintenanceRoutes);
 
 module.exports = router;

@@ -74,18 +74,6 @@ const allocationSchema = new Schema(
       ref: 'Manager',
       default: null,
     },
-    // --- Maintenance actors (future-ready; populated by a maintenance module).
-    // Recorded here so history/timeline can attribute maintenance to a manager.
-    maintenanceStartedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'Manager',
-      default: null,
-    },
-    maintenanceCompletedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'Manager',
-      default: null,
-    },
   },
   {
     timestamps: true,

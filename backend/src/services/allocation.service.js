@@ -1,6 +1,7 @@
 const Allocation = require('../models/allocation.model');
 const Asset = require('../models/asset.model');
 const Employee = require('../models/employee.model');
+const Maintenance = require('../models/maintenance.model');
 const ApiError = require('../utils/ApiError');
 const { paginate } = require('../utils/queryFeatures');
 
@@ -115,10 +116,24 @@ async function returnAsset(allocationId, payload, managerId) {
     throw ApiError.conflict(`Allocation is not active (current status: '${exists.status}')`);
   }
 
-  // Free the asset and record its returned condition.
+  // Damaged assets go into maintenance instead of straight back to the pool.
+  const isDamaged = returnCondition === 'Damaged';
   await Asset.findByIdAndUpdate(allocation.asset, {
-    $set: { status: 'Available', condition: returnCondition },
+    $set: {
+      status: isDamaged ? 'Under Maintenance' : 'Available',
+      condition: returnCondition,
+    },
   });
+
+  // Auto-open a Pending maintenance request (no technician / start date yet).
+  if (isDamaged) {
+    await Maintenance.create({
+      asset: allocation.asset,
+      issue: payload.returnRemarks || 'Reported damaged on return',
+      status: 'Pending',
+      createdBy: managerId,
+    });
+  }
 
   return allocation.populate(POPULATE);
 }

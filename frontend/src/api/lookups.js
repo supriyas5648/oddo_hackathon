@@ -9,8 +9,11 @@ export async function fetchCategories() {
 }
 
 export async function fetchDepartments() {
+  // Load ALL departments (not just Active) so the Asset form/filter dropdowns
+  // include every department — including any inserted directly in the DB that
+  // lack the Mongoose "Active" default.
   const { data } = await api.get('/departments', {
-    params: { limit: 100, sort: 'name', status: 'Active' },
+    params: { limit: 100, sort: 'name' },
   });
   return data.data;
 }
